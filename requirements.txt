@@ -8,3 +8,5 @@ scipy
 opencv-python
 pywin32
 schedule
+pynput
+threading
