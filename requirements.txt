@@ -1,0 +1,10 @@
+cryptography
+requests
+pillow
+psutil
+sounddevice
+pynput
+scipy
+opencv-python
+pywin32
+schedule
