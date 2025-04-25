@@ -8,3 +8,4 @@ pynput
 opencv-python
 schedule
 pywin32
+pyaudio
